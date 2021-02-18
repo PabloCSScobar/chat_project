@@ -23,6 +23,14 @@ function userLeave(id) {
   }
 }
 
+function isUsernameAvailable(username) {
+  const index = users.findIndex(user => user.username === username);
+  if (index !== -1) {
+    return false;
+  } else {
+    return true;
+  }
+}
 
 function getRoomUsers(room) {
   return users.filter(user => user.room === room);
@@ -32,5 +40,6 @@ module.exports = {
   userJoin,
   getCurrentUser,
   userLeave,
-  getRoomUsers
+  getRoomUsers,
+  isUsernameAvailable
 };

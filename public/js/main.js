@@ -47,7 +47,6 @@ chatForm.addEventListener('submit', (e) => {
   e.target.elements.msg.focus();
 });
 
-
 function outputMessage(message) {
   const div = document.createElement('div');
   div.classList.add('message');
