@@ -11,7 +11,8 @@ const {
   userLeave,
   getRoomUsers,
   isUsernameAvailable,
-  randomChat
+  randomChat,
+  getAllUsers
 } = require('./utils/users');
 
 const app = express();
@@ -70,9 +71,11 @@ io.on('connection', socket => {
 
   // Listen for chatMessage
   socket.on('chatMessage', msg => {
+    console.log("allusers", getAllUsers())
     const user = getCurrentUser(socket.id);
-    
-    io.to(user.room).emit('message', formatMessage(user.username, msg));
+    if(user) {
+      io.to(user.room).emit('message', formatMessage(user.username, msg));
+    }
   });
 
 
@@ -81,6 +84,7 @@ io.on('connection', socket => {
     const ruser = randomChat(socket.id, username );
     const user = userJoin(socket.id, username, ruser.room);
     socket.join(user.room);
+
     // Welcome current user
     if(ruser.status == 'waiting') {
       socket.emit('message', formatMessage(AppName, 'Trwa łączenie z losowym użytkownikiem...'));
@@ -114,7 +118,7 @@ io.on('connection', socket => {
     const user = userLeave(socket.id);
 
     if (user) {
-      io.to(user.room).emit(
+      socket.broadcast.to(user.room).emit(
         'message',
         formatMessage(AppName, `${user.username} opuścił chat`)
       );
@@ -124,6 +128,21 @@ io.on('connection', socket => {
         room: user.room,
         users: getRoomUsers(user.room)
       });
+    }
+  });
+
+
+   // Runs when client disconnects
+   socket.on('leaveRandomChatSecondUser', () => {
+    userLeave(socket.id);
+  });
+
+   socket.on('leaveRandomChat', () => {
+    const user = userLeave(socket.id);
+
+    if (user) {
+      socket.broadcast
+      .to(user.room).emit('leaveRandom', formatMessage(AppName, `Użytkownik ${user.username} rozłączył się. Rozpocznij nowa rozmowę lub przejdź do strony głównej.`));
     }
   });
 });
