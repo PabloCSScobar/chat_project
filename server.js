@@ -10,7 +10,8 @@ const {
   getCurrentUser,
   userLeave,
   getRoomUsers,
-  isUsernameAvailable
+  isUsernameAvailable,
+  randomChat
 } = require('./utils/users');
 
 const app = express();
@@ -41,13 +42,8 @@ app.post('/auth', (req, res) => {
 });
 
 
-
-
-
-
 // Run when client connects
 io.on('connection', socket => {
-  console.log('nowy user ' + socket.id);
   socket.on('joinRoom', ({ username, room }) => {
     console.log('joinRoom ' + username + ' ' + room)
     const user = userJoin(socket.id, username, room);
@@ -75,8 +71,23 @@ io.on('connection', socket => {
   // Listen for chatMessage
   socket.on('chatMessage', msg => {
     const user = getCurrentUser(socket.id);
-
+    
     io.to(user.room).emit('message', formatMessage(user.username, msg));
+  });
+
+
+  // random chat
+  socket.on('randomChat', username => {
+    const ruser = randomChat(socket.id, username );
+    const user = userJoin(socket.id, username, ruser.room);
+    socket.join(user.room);
+    // Welcome current user
+    if(ruser.status == 'waiting') {
+      socket.emit('message', formatMessage(AppName, 'Trwa łączenie z losowym użytkownikiem...'));
+    }
+    if(ruser.status == 'connected') {
+      io.to(user.room).emit('message', formatMessage(AppName, 'Połączono z losowym użytkownikiem. Przywitaj się :) '));
+    }
   });
 
   // Runs when client disconnects

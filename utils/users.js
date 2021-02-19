@@ -1,5 +1,5 @@
 const users = [];
-
+let randomUser = null;
 
 function userJoin(id, username, room) {
   const user = { id, username, room };
@@ -9,6 +9,17 @@ function userJoin(id, username, room) {
   return user;
 }
 
+function randomChat(id, username) {
+  if(randomUser == null || randomUser.id == id) {
+    const room = new Date().valueOf()
+    randomUser = {id, username, room, status: 'waiting'}
+    return randomUser;
+  } else {
+    res = {...randomUser, status: 'connected'}
+    randomUser = null;
+    return res;
+  }
+}
 
 function getCurrentUser(id) {
   return users.find(user => user.id === id);
@@ -17,7 +28,9 @@ function getCurrentUser(id) {
 
 function userLeave(id) {
   const index = users.findIndex(user => user.id === id);
-
+  if (randomUser !=null && randomUser.id ==id) {
+    randomUser = null;
+  }
   if (index !== -1) {
     return users.splice(index, 1)[0];
   }
@@ -41,5 +54,6 @@ module.exports = {
   getCurrentUser,
   userLeave,
   getRoomUsers,
-  isUsernameAvailable
+  isUsernameAvailable,
+  randomChat
 };
