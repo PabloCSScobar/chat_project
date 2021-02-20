@@ -18,21 +18,23 @@ const {
 const app = express();
 const server = http.createServer(app);
 
+
+//ustawienia cors dla ws
 options={
   cors:true,
-  origins:["http://localhost:4200", "http://localhost:3000"],
+  origins:["http://localhost:4200", "http://localhost:3000", "https://chat-sggw.netlify.app"],
  }
+app.use(cors());
  
 const io = socketio(server, options);
-// enable cors
-app.use(cors());
+
 app.use( bodyParser.json() ); 
 
-// Set static folder
-app.use(express.static(path.join(__dirname, 'public')));
 
 const AppName = 'ChatSGGW';
 
+
+// weryfikacja czy wprowadzona nazwa użytkownika jest wolna
 app.post('/auth', (req, res) => {
     console.log(req.body.username)
     if(isUsernameAvailable(req.body.username)) {
@@ -43,7 +45,7 @@ app.post('/auth', (req, res) => {
 });
 
 
-// Run when client connects
+// polaczenie z klientem
 io.on('connection', socket => {
   socket.on('joinRoom', ({ username, room }) => {
     console.log('joinRoom ' + username + ' ' + room)
@@ -51,10 +53,10 @@ io.on('connection', socket => {
 
     socket.join(user.room);
 
-    // Welcome current user
+    // Powitanie połączonego usera
     socket.emit('message', formatMessage(AppName, 'Witamy na chacie!'));
 
-    // Broadcast when a user connects
+    // Wiadomość do pozostałych użytkowników na chacie w przypadku pojawienia się nowego usera
     socket.broadcast
       .to(user.room)
       .emit(
@@ -62,14 +64,14 @@ io.on('connection', socket => {
         formatMessage(AppName, `${user.username} dołączył do chatu`)
       );
 
-    // Send users and room info
+    // Przesłanie aktualnej listy użytkowników w pokoju i nazwy pokoju
     io.to(user.room).emit('roomUsers', {
       room: user.room,
       users: getRoomUsers(user.room)
     });
   });
 
-  // Listen for chatMessage
+  // Nasluchiwanie wiadomości od użytkownika
   socket.on('chatMessage', msg => {
     console.log("allusers", getAllUsers())
     const user = getCurrentUser(socket.id);
@@ -79,32 +81,33 @@ io.on('connection', socket => {
   });
 
 
-  // random chat
+  // rozpoczęcie nowego chatu
   socket.on('randomChat', username => {
     const ruser = randomChat(socket.id, username );
     const user = userJoin(socket.id, username, ruser.room);
     socket.join(user.room);
 
-    // Welcome current user
+    // W przypadku, gdy w pokoju jest jedna osoba, wysłanie wiadomości do oczekującego użytkownika
     if(ruser.status == 'waiting') {
       socket.emit('message', formatMessage(AppName, 'Trwa łączenie z losowym użytkownikiem...'));
     }
+    // Jeśli do losowego chatu połączy się druga osoba, wysłanie powitalnej wiadomości do obu użytkowników
     if(ruser.status == 'connected') {
       io.to(user.room).emit('message', formatMessage(AppName, 'Połączono z losowym użytkownikiem. Przywitaj się :) '));
     }
   });
 
-  // Runs when client disconnects
+  // Uruchomienie po rozłączeniu się użytkownika ( w przypadku zamknięcia przeglądarki)
   socket.on('disconnect', () => {
     const user = userLeave(socket.id);
-
+    // wiadomość do użytkowników w pokoju o opuszczeniu użytkownika
     if (user) {
       io.to(user.room).emit(
         'message',
         formatMessage(AppName, `${user.username} opuścił chat`)
       );
 
-      // Send users and room info
+      // aktualizacja aktualnej listy użytkowników
       io.to(user.room).emit('roomUsers', {
         room: user.room,
         users: getRoomUsers(user.room)
@@ -112,18 +115,18 @@ io.on('connection', socket => {
     }
   });
 
-   // Runs when client disconnects
+   //Uruchomienie po rozłączeniu się użytkownika ( w przypadku ręcznego wyjścia z pokoju)
    socket.on('leaveChat', () => {
-     console.log("leaveChat");
-    const user = userLeave(socket.id);
 
+    const user = userLeave(socket.id);
+    // wiadomość do użytkowników w pokoju o opuszczeniu użytkownika
     if (user) {
       socket.broadcast.to(user.room).emit(
         'message',
         formatMessage(AppName, `${user.username} opuścił chat`)
       );
 
-      // Send users and room info
+      // aktualizacja aktualnej listy użytkowników
       io.to(user.room).emit('roomUsers', {
         room: user.room,
         users: getRoomUsers(user.room)
@@ -132,14 +135,15 @@ io.on('connection', socket => {
   });
 
 
-   // Runs when client disconnects
+   //Uruchomienie po rozłączeniu się drugiego użytkownika z randomChatu
    socket.on('leaveRandomChatSecondUser', () => {
     userLeave(socket.id);
   });
 
+   //Uruchomienie po rozłączeniu się pierwszego użytkownika z randomChatu
    socket.on('leaveRandomChat', () => {
     const user = userLeave(socket.id);
-
+    // wiadomość do drugiego użytkownika 
     if (user) {
       socket.broadcast
       .to(user.room).emit('leaveRandom', formatMessage(AppName, `Użytkownik ${user.username} rozłączył się. Rozpocznij nowa rozmowę lub przejdź do strony głównej.`));
